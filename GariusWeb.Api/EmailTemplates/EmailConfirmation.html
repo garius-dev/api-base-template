@@ -1,0 +1,95 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirme seu E-mail</title>
+    <style>
+        /* Estilos inline para máxima compatibilidade */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #dddddd;
+        }
+
+        .header {
+            background-color: #7e45f9;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+
+            .header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+
+        .content {
+            padding: 30px;
+            color: #3f3f3f;
+            line-height: 1.6;
+        }
+
+            .content p {
+                margin: 0 0 20px;
+            }
+
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .button {
+            background-color: #7e45f9;
+            color: #ffffff !important;
+            padding: 15px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .footer {
+            background-color: #f4f4f4;
+            color: #888888;
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+        }
+
+            .footer a {
+                color: #7e45f9;
+                text-decoration: none;
+            }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Confirmação de Cadastro</h1>
+        </div>
+        <div class="content">
+            <p>Olá {{UserName}},</p>
+            <p>Obrigado por se registrar! Por favor, clique no botão abaixo para confirmar seu endereço de e-mail e ativar sua conta.</p>
+            <div class="button-container">
+                <a href="{{ConfirmationLink}}" class="button">Confirmar E-mail</a>
+            </div>
+            <p>Se você não se cadastrou em nosso serviço, por favor, ignore este e-mail.</p>
+            <p>Atenciosamente,<br>Equipe Garius</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 Garius. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

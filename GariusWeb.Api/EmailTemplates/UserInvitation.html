@@ -1,0 +1,94 @@
+﻿
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Você foi Convidado!</title>
+    <style>
+        /* Estilos inline para máxima compatibilidade */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #dddddd;
+        }
+
+        .header {
+            background-color: #7e45f9;
+            color: #ffffff;
+            padding: 20px;
+            text-align: center;
+        }
+
+            .header h1 {
+                margin: 0;
+                font-size: 24px;
+            }
+
+        .content {
+            padding: 30px;
+            color: #3f3f3f;
+            line-height: 1.6;
+        }
+
+            .content p {
+                margin: 0 0 20px;
+            }
+
+        .button-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .button {
+            background-color: #7e45f9;
+            color: #ffffff !important;
+            padding: 15px 25px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .footer {
+            background-color: #f4f4f4;
+            color: #888888;
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+        }
+
+            .footer a {
+                color: #7e45f9;
+                text-decoration: none;
+            }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Você foi Convidado!</h1>
+        </div>
+        <div class="content">
+            <p>Olá,</p>
+            <p>Você foi convidado para se juntar à organização <strong>{{TenantName}}</strong>. Para aceitar o convite e criar sua conta, por favor, clique no botão abaixo.</p>
+            <div class="button-container">
+                <a href="{{InvitationLink}}" class="button">Aceitar Convite e Cadastrar</a>
+            </div>
+            <p>Este convite é válido por 72 horas. Se você não esperava este convite, pode ignorar este e-mail.</p>
+            <p>Atenciosamente,<br>Equipe Garius</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 Garius. Todos os direitos reservados.</p>
+        </div>
+    </div>
+</body>
+</html>

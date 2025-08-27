@@ -1,0 +1,181 @@
+﻿using Asp.Versioning;
+using GariusWeb.Api.Application.Dtos.Auth;
+using GariusWeb.Api.Application.Dtos.Invitations;
+using GariusWeb.Api.Application.Exceptions;
+using GariusWeb.Api.Application.Interfaces;
+using GariusWeb.Api.Domain.Entities;
+using GariusWeb.Api.Extensions;
+using GariusWeb.Api.Helpers;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+
+namespace GariusWeb.Api.WebApi.Controllers.v1
+{
+    [ApiController]
+    [Route("api/v{version:apiVersion}/auth")]
+    [ApiVersion("1.0")]
+    public class AuthController : ControllerBase
+    {
+        private readonly IAuthService _authService;
+
+        public AuthController(IAuthService authService)
+        {
+            _authService = authService;
+        }
+                
+        [HttpPost("register")]
+        [EnableRateLimiting(RateLimiterExtensions.RegisterPolicy)]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
+        {
+            if (!ModelState.IsValid)
+                throw new ValidationException("Requisição inválida: " + ModelState.ToFormattedErrorString());
+
+            await _authService.RegisterAsync(request);
+            return Ok(ApiResponse<string>.Ok("Usuário registrado com sucesso. Verifique seu e-mail."));
+        }
+
+        [HttpPost("refresh-token")]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
+        {
+            var token = await _authService.RefreshTokenAsync(request.RefreshToken);
+            return Ok(ApiResponse<TokenResponse>.Ok(token, "Token atualizado com sucesso"));
+        }
+
+        [HttpPost("login")]
+        [EnableRateLimiting(RateLimiterExtensions.LoginPolicy)]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            if (!ModelState.IsValid)
+                throw new ValidationException("Requisição inválida: " + ModelState.ToFormattedErrorString());
+
+            var tokenResponse = await _authService.LoginAsync(request);
+
+            return Ok(ApiResponse<TokenResponse>.Ok(tokenResponse, "Login realizado com sucesso"));
+        }
+
+        [HttpGet("{provider}")]
+        [AllowAnonymous]
+        public IActionResult ExternalLogin(string provider, [FromQuery] string transitionUrl, [FromQuery] string returnUrl = "/")
+        {
+            if (string.IsNullOrWhiteSpace(transitionUrl))
+                throw new ValidationException("transitionUrl é obrigatório e deve ser válido.");
+
+            var redirectUrl = Url.Action(nameof(ExternalCallback), "Auth", new { returnUrl, transitionUrl }, protocol: Request.Scheme);
+
+            if (string.IsNullOrWhiteSpace(redirectUrl))
+                throw new ValidationException("redirectUrl é obrigatóri'o' e deve ser válido.");
+
+            return _authService.GetExternalLoginChallengeAsync(provider, redirectUrl);
+        }
+
+        [HttpGet("{provider}/url")]
+        [AllowAnonymous]
+        public IActionResult GetExternalLoginUrl(string provider, [FromQuery] string transitionUrl, [FromQuery] string returnUrl = "/")
+        {
+            if (string.IsNullOrWhiteSpace(transitionUrl))
+                throw new ValidationException("transitionUrl é obrigatório e deve ser válido.");
+
+            string? loginUrl = Url.Action(
+                action: nameof(ExternalLogin),
+                controller: "Auth",
+                values: new { provider, transitionUrl, returnUrl },
+                protocol: Request.Scheme,
+                host: Request.Host.Value
+            );
+
+            if (string.IsNullOrWhiteSpace(loginUrl))
+                throw new ValidationException("loginUrl é obrigatório e deve ser válido.");
+
+            return Ok(ApiResponse<string>.Ok(loginUrl));
+        }
+
+        [HttpGet("callback")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ExternalCallback([FromQuery] string transitionUrl, [FromQuery] string returnUrl = "/")
+        {
+            if (string.IsNullOrWhiteSpace(transitionUrl))
+                throw new ValidationException("transitionUrl é obrigatório e deve ser válido.");
+
+            var redirectUrl = await _authService.ExternalLoginCallbackAsync(transitionUrl, returnUrl);
+
+            return Redirect(redirectUrl);
+        }
+
+        [HttpPost("exchange")]
+        public async Task<IActionResult> ExchangeCode([FromBody] CodeExchangeRequest request)
+        {
+            if (!ModelState.IsValid)
+                throw new ValidationException("Requisição inválida: " + ModelState.ToFormattedErrorString());
+
+            var tokenResponse = await _authService.ExchangeCode(request.Code);
+            return Ok(ApiResponse<TokenResponse>.Ok(tokenResponse, "Sucesso!"));
+        }
+
+        [HttpGet("confirm-email")]
+        public async Task<IActionResult> ConfirmEmail([FromQuery] string userId, [FromQuery] string token)
+        {
+            await _authService.ConfirmEmailAsync(userId, token);
+
+            return Ok(ApiResponse<string>.Ok("E-mail confirmado com sucesso"));
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            if (!ModelState.IsValid)
+                throw new ValidationException("Requisição inválida: " + ModelState.ToFormattedErrorString());
+
+            await _authService.ForgotPasswordAsync(request);
+
+            return Ok(ApiResponse<string>.Ok("Se o e-mail estiver correto, instruções foram enviadas"));
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            if (!ModelState.IsValid)
+                throw new ValidationException("Requisição inválida: " + ModelState.ToFormattedErrorString());
+
+            await _authService.ResetPasswordAsync(request);
+
+            return Ok(ApiResponse<string>.Ok("Senha redefinida com sucesso"));
+        }
+
+
+
+        [HttpPost("intivations/create")]
+        [Authorize(Roles = "SuperAdmin,Developer,Admin,Owner")]
+        public async Task<IActionResult> CreateInvitation([FromBody] InvitationRequest request)
+        {
+            if (!ModelState.IsValid)
+                throw new ValidationException("Requisição inválida: " + ModelState.ToFormattedErrorString());
+
+            var token = await _authService.CreateInvitationAsync(request);
+
+            return Ok(ApiResponse<string>.Ok(token));
+        }
+
+        [HttpGet("intivations/validate/{token}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ValidateInviteToken([FromRoute] string token)
+        {
+            string email = await _authService.ValidateInviteToken(token);
+
+            return Ok(ApiResponse<object>.Ok(new { email }));
+        }
+
+        [HttpPost("intivations/register")]
+        [AllowAnonymous]
+        [EnableRateLimiting(RateLimiterExtensions.RegisterPolicy)]
+        public async Task<IActionResult> RegisterFromInvite([FromBody] RegisterFromInviteRequest request)
+        {
+            if (!ModelState.IsValid)
+                throw new ValidationException("Requisição inválida: " + ModelState.ToFormattedErrorString());
+
+            await _authService.RegisterFromInviteAsync(request);
+
+            return Ok(ApiResponse<string>.Ok("Usuário registrado com sucesso"));
+        }
+    }
+}
