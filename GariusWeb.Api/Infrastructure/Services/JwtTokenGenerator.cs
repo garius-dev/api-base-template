@@ -2,6 +2,8 @@
 using GariusWeb.Api.Configuration;
 using GariusWeb.Api.Domain.Entities.Identity;
 using GariusWeb.Api.Domain.Entities.ServiceAccount;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -13,33 +15,54 @@ namespace GariusWeb.Api.Infrastructure.Services
     public class JwtTokenGenerator : IJwtTokenGenerator
     {
         private readonly AppSecrets.JwtSettings _jwtSettings;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly RoleManager<ApplicationRole> _roleManager;
 
-        public JwtTokenGenerator(IOptions<AppSecrets.JwtSettings> jwtSettings)
+        public JwtTokenGenerator(IOptions<AppSecrets.JwtSettings> jwtSettings,
+            UserManager<ApplicationUser> userManager,
+            RoleManager<ApplicationRole> roleManager)
         {
             _jwtSettings = jwtSettings.Value;
+            _userManager = userManager;
+            _roleManager = roleManager;
         }
 
-        public string GenerateToken(ApplicationUser user, IList<string> roles, IList<Claim>? additionalClaims = null)
+        public async Task<string> GenerateToken(ApplicationUser user, IList<string> roles)
         {
             var claims = new List<Claim>
             {
                 new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(JwtRegisteredClaimNames.Iat, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
+                new Claim(JwtRegisteredClaimNames.Iss, "garius-api"),
+                new Claim(JwtRegisteredClaimNames.Aud, "garius-api-clients"),
                 new(JwtRegisteredClaimNames.Email, user.Email!),
                 new(ClaimTypes.Name, user.UserName ?? user.Email ?? user.Id.ToString()),
                 new("firstName", user.FirstName ?? string.Empty),
                 new("lastName", user.LastName ?? string.Empty),
-                new("tenantId", user.TenantId.ToString()),
+                
             };
 
+            if(user.Tenant != null)
+            {
+                claims.Add(new("Tid", user.TenantId.ToString()));
+            }
+
             // Adiciona roles
-            var selectedRoles = roles.Select(role => new Claim(ClaimTypes.Role, role));
-            claims.AddRange(selectedRoles);
+            claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
             // Adiciona claims personalizadas, se houver
-            if (additionalClaims != null)
-            {
-                claims.AddRange(additionalClaims);
-            }
+            var roleClaims = await _roleManager.Roles
+                .Where(r => r.Name != null && roles.Contains(r.Name))
+                .SelectMany(r => r.Claims)
+                .ToListAsync();
+
+            var permissions = roleClaims
+                .Where(rc => rc.ClaimType == "permission" && rc.ClaimValue != null)
+                .Select(rc => rc.ClaimValue!)
+                .ToList();
+
+            claims.AddRange(permissions.Select(permission => new Claim("permission", permission)));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

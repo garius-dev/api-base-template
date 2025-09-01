@@ -5,6 +5,7 @@ using GariusWeb.Api.Application.Interfaces;
 using GariusWeb.Api.Domain.Constants;
 using GariusWeb.Api.Extensions;
 using GariusWeb.Api.Helpers;
+using Google.Cloud.Iam.V1;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -23,7 +24,7 @@ namespace GariusWeb.Api.WebApi.Controllers.v1
             _roleService = roleService;
         }
 
-        [Authorize(Roles = "Developer,SuperAdmin,Owner,Admin")]
+        [Authorize(Policy = Permissions.Roles.Read)]
         [HttpGet]
         public async Task<IActionResult> GetRoles(CancellationToken cancellationToken = default)
         {
@@ -32,7 +33,7 @@ namespace GariusWeb.Api.WebApi.Controllers.v1
             return Ok(ApiResponse<IList<string>>.Ok(roles));
         }
 
-        [Authorize(Roles = "Developer,SuperAdmin")]
+        [Authorize(Policy = Permissions.Roles.Create)]
         [HttpPost("create")]
         public async Task<IActionResult> CreateNewRole([FromBody] CreateRoleRequest request)
         {
@@ -44,7 +45,7 @@ namespace GariusWeb.Api.WebApi.Controllers.v1
             return Ok(ApiResponse<string>.Ok($"Role '{request.RoleName}' criada com sucesso"));
         }
 
-        [Authorize(Roles = "Developer,SuperAdmin")]
+        [Authorize(Policy = Permissions.Roles.Delete)]
         [HttpDelete("{roleName}")]
         public async Task<IActionResult> DeleteRole(string roleName)
         {
@@ -53,7 +54,7 @@ namespace GariusWeb.Api.WebApi.Controllers.v1
             return Ok(ApiResponse<string>.Ok($"Role '{roleName}' deletada com sucesso"));
         }
 
-        [Authorize(Roles = "Developer,SuperAdmin")]
+        [Authorize(Policy = Permissions.Roles.Update)]
         [HttpPatch("{roleName}")]
         public async Task<IActionResult> UpdateRole(string roleName, [FromBody] UpdateRoleRequest request)
         {

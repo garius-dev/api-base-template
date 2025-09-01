@@ -11,7 +11,9 @@ using GariusWeb.Api.Domain.Entities.Identity;
 using GariusWeb.Api.Domain.Interfaces;
 using GariusWeb.Api.Extensions;
 using GariusWeb.Api.Helpers;
+using GariusWeb.Api.Infrastructure.Auth;
 using GariusWeb.Api.Infrastructure.Data;
+using GariusWeb.Api.Infrastructure.Data.Seed;
 using GariusWeb.Api.Infrastructure.Middleware;
 using GariusWeb.Api.Infrastructure.Services;
 using GariusWeb.Api.Swagger;
@@ -284,7 +286,10 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DictionaryKeyPolicy = JsonNamingPolicy.CamelCase;
     });
 
+// ###############################
 // ### INJEÇÃO DE DEPENDÊNCIAS ###
+// ###############################
+
 
 // --- CONFIGURAÇÃO DO AUTO MAPPER ---
 builder.Services.AddAutoMapper(
@@ -329,6 +334,10 @@ builder.Services.AddScoped<ISystemUserResolver, SystemUserResolver>();
 // --- CONFIGURAÇÃO DO SERVIÇO DE EMAIL TEMPLATE ---
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 
+// --- CONFIGURAÇÃO DO SERVIÇO DE AUTH POLICY PROVIDER ---
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
 
 var app = builder.Build();
 
@@ -345,6 +354,20 @@ app.UseSerilogRequestLogging(o =>
         d.Set("StatusCode", ctx.Response?.StatusCode ?? 0);
     };
 });
+// --- SEED DO BANCO DE DADOS ---
+using (var scope = app.Services.CreateScope())
+{
+    var serviceProvider = scope.ServiceProvider;
+    try
+    {
+        await ApplicationDbContextSeeder.SeedRolesAndPermissionsAsync(serviceProvider);
+    }
+    catch (Exception ex)
+    {
+        var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while seeding the database.");
+    }
+}
 
 app.UseForwardedHeaders();
 

@@ -121,7 +121,7 @@ namespace GariusWeb.Api.WebApi.Dev
                     new("dev-seed", "true"),
                 };
 
-                token = jwtGenerator.GenerateToken(user, new List<string> { devRoleName }, extraClaims);
+                token = await jwtGenerator.GenerateToken(user, new List<string> { devRoleName });
 
                 return Results.Ok(ApiResponse<string>.Ok(token, "Sucesso!"));
             });

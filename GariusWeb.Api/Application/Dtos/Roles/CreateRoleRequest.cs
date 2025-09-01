@@ -11,5 +11,10 @@ namespace GariusWeb.Api.Application.Dtos.Roles
 
         [Range(0, 999, ErrorMessage = "O nível deve estar entre 0 e 999.")]
         public int RoleLevel { get; set; } = 999;
+
+        [MaxLength(100, ErrorMessage = "A descrição da role deve ter no máximo 100 caracteres.")]
+        public string? Description { get; set; }
+
+        public List<string> Permissions { get; set; } = [];
     }
 }

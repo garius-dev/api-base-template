@@ -9,6 +9,7 @@ using GariusWeb.Api.Domain.Entities.Identity;
 using GariusWeb.Api.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 using System.Security.Claims;
 
 namespace GariusWeb.Api.Application.Services
@@ -50,9 +51,16 @@ namespace GariusWeb.Api.Application.Services
             if (roleExists)
                 throw new ConflictException($"A role '{roleName}' já existe.");
 
-            var result = await _roleManager.CreateAsync(new ApplicationRole(roleName, description: null, request.RoleLevel)).ConfigureAwait(false);
+            var role = new ApplicationRole(roleName, description: null, request.RoleLevel);
+            var result = await _roleManager.CreateAsync(role).ConfigureAwait(false);
+
             if (!result.Succeeded)
                 throw new InternalServerErrorAppException("Erro ao criar a role: " + GetErrors(result));
+
+            foreach (var permission in request.Permissions.Distinct())
+            {
+                await _roleManager.AddClaimAsync(role, new Claim("permission", permission));
+            }
 
             _logger.LogInformation("Role {RoleName} (Level {Level}) criada por UserId {UserId}.",
                 roleName, request.RoleLevel, loggedUserInfo.UserId.ToString());
@@ -82,7 +90,7 @@ namespace GariusWeb.Api.Application.Services
             EnsureCanManageRole(loggedUserInfo.TopRoleLevel, role.Level);
 
             bool hasChanges = false;
-            if (!string.IsNullOrWhiteSpace(request.RoleName) && !string.Equals(role.Name, request.RoleName, StringComparison.Ordinal))
+            if (!string.IsNullOrWhiteSpace(request.RoleName) && role.Name != request.RoleName)
             {
                 var existingRoleWithNewName = await _roleManager.FindByNameAsync(request.RoleName).ConfigureAwait(false);
                 if (existingRoleWithNewName != null)
@@ -107,6 +115,25 @@ namespace GariusWeb.Api.Application.Services
 
                 if (!result.Succeeded)
                     throw new InternalServerErrorAppException("Erro ao atualizar a role: " + GetErrors(result));
+
+                if (request.Permissions != null && request.Permissions.Any())
+                {
+                    var currentClaims = await _roleManager.GetClaimsAsync(role);
+                    var currentPermissionClaims = currentClaims.Where(c => c.Type == "permission").ToList();
+                    var requestedPermissions = request.Permissions.Distinct().ToList();
+
+                    var claimsToRemove = currentPermissionClaims.Where(c => !requestedPermissions.Contains(c.Value)).ToList();
+                    foreach (var claim in claimsToRemove)
+                    {
+                        await _roleManager.RemoveClaimAsync(role, claim);
+                    }
+
+                    var newPermissions = requestedPermissions.Where(p => !currentPermissionClaims.Any(c => c.Value == p)).ToList();
+                    foreach (var permission in newPermissions)
+                    {
+                        await _roleManager.AddClaimAsync(role, new Claim("permission", permission));
+                    }
+                }                    
             }
         }
 

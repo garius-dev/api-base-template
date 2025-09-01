@@ -6,7 +6,7 @@ namespace GariusWeb.Api.Application.Interfaces
 {
     public interface IJwtTokenGenerator
     {
-        string GenerateToken(ApplicationUser user, IList<string> roles, IList<Claim>? additionalClaims = null);
+        Task<string> GenerateToken(ApplicationUser user, IList<string> roles);
         //string GenerateToken(ApplicationUser user, IEnumerable<string> roles);
         string GenerateServiceAccountToken(ServiceAccountEntity serviceAccount); // Adicionar este método
         ClaimsPrincipal GetPrincipalFromExpiredToken(string token);

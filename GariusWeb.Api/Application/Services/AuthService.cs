@@ -161,9 +161,9 @@ namespace GariusWeb.Api.Application.Services
             await _userManager.ResetAccessFailedCountAsync(user!).ConfigureAwait(false);
 
             var roles = await _userManager.GetRolesAsync(user!).ConfigureAwait(false);
-            var claims = await _userManager.GetClaimsAsync(user!).ConfigureAwait(false);
+            //var claims = await _userManager.GetClaimsAsync(user!).ConfigureAwait(false);
 
-            var accessToken = _jwtTokenGenerator.GenerateToken(user!, roles, claims);
+            var accessToken = await _jwtTokenGenerator.GenerateToken(user!, roles);
             var refreshToken = GenerateRefreshToken();
 
             user!.RefreshToken = refreshToken;
@@ -192,7 +192,7 @@ namespace GariusWeb.Api.Application.Services
             var roles = await _userManager.GetRolesAsync(user).ConfigureAwait(false);
             var claims = await _userManager.GetClaimsAsync(user).ConfigureAwait(false);
 
-            var newAccessToken = _jwtTokenGenerator.GenerateToken(user, roles, claims);
+            var newAccessToken = await _jwtTokenGenerator.GenerateToken(user, roles);
             var newRefreshToken = GenerateRefreshToken();
 
             user.RefreshToken = newRefreshToken;
@@ -298,7 +298,7 @@ namespace GariusWeb.Api.Application.Services
 
             await EnsureUserCanLoginAsync(user, requireExternal: true).ConfigureAwait(false);
 
-            var accessToken = _jwtTokenGenerator.GenerateToken(user!, payload.Roles, payload.Claims);
+            var accessToken = await _jwtTokenGenerator.GenerateToken(user!, payload.Roles);
             var refreshToken = GenerateRefreshToken();
 
             user!.RefreshToken = refreshToken;
