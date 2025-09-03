@@ -14,11 +14,11 @@ namespace GariusWeb.Api.Infrastructure.Services
 {
     public class JwtTokenGenerator : IJwtTokenGenerator
     {
-        private readonly AppSecrets.JwtSettings _jwtSettings;
+        private readonly AppSecretsConfiguration.JwtSettings _jwtSettings;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<ApplicationRole> _roleManager;
 
-        public JwtTokenGenerator(IOptions<AppSecrets.JwtSettings> jwtSettings,
+        public JwtTokenGenerator(IOptions<AppSecretsConfiguration.JwtSettings> jwtSettings,
             UserManager<ApplicationUser> userManager,
             RoleManager<ApplicationRole> roleManager)
         {
@@ -39,8 +39,7 @@ namespace GariusWeb.Api.Infrastructure.Services
                 new(JwtRegisteredClaimNames.Email, user.Email!),
                 new(ClaimTypes.Name, user.UserName ?? user.Email ?? user.Id.ToString()),
                 new("firstName", user.FirstName ?? string.Empty),
-                new("lastName", user.LastName ?? string.Empty),
-                
+                new("lastName", user.LastName ?? string.Empty),                
             };
 
             if(user.Tenant != null)
@@ -62,7 +61,7 @@ namespace GariusWeb.Api.Infrastructure.Services
                 .Select(rc => rc.ClaimValue!)
                 .ToList();
 
-            claims.AddRange(permissions.Select(permission => new Claim("permission", permission)));
+            claims.AddRange(permissions.Select(permission => new Claim("permissions", permission)));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

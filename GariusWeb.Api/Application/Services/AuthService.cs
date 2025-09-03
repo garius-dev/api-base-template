@@ -17,7 +17,7 @@ using Microsoft.Extensions.Options;
 using System.Data;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using static GariusWeb.Api.Configuration.AppSecrets;
+using static GariusWeb.Api.Configuration.AppSecretsConfiguration;
 
 namespace GariusWeb.Api.Application.Services
 {
@@ -35,6 +35,8 @@ namespace GariusWeb.Api.Application.Services
         private readonly UrlSettings _urlSettings;
         private readonly IServiceProvider _serviceProvider;
 
+        private readonly IHashIdService _hashIdService;
+
         public AuthService(UserManager<ApplicationUser> userManager,
                        IJwtTokenGenerator jwtTokenGenerator,
                        SignInManager<ApplicationUser> signInManager,
@@ -43,6 +45,7 @@ namespace GariusWeb.Api.Application.Services
                        ITenantService tenantService,
                        LoggedUserHelper loggedUserHelper,
                        ApplicationDbContext dbContext,
+                       IHashIdService hashIdService,
                        IServiceProvider serviceProvider)
         {
             _userManager = userManager;
@@ -54,6 +57,7 @@ namespace GariusWeb.Api.Application.Services
             _dbContext = dbContext;
             _loggedUserHelper = loggedUserHelper;
             _serviceProvider = serviceProvider;
+            _hashIdService = hashIdService;
         }
 
         private class LoginPayload
@@ -227,7 +231,7 @@ namespace GariusWeb.Api.Application.Services
                 ?? throw new ValidationException("Não foi possível obter informações do provedor externo.");
 
             var user = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey).ConfigureAwait(false);
-
+                        
             if (user == null)
             {
                 var email = info.Principal.FindFirstValue(ClaimTypes.Email)
@@ -442,7 +446,7 @@ namespace GariusWeb.Api.Application.Services
                 await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
                 try
-                {                    
+                {
                     string? decodedToken = TextExtensions.DecodeOneTimeCode(request.Token);
 
                     if (!TextExtensions.TryGetCodeHash(decodedToken, out var tokenHash))

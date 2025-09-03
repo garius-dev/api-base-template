@@ -9,10 +9,10 @@ namespace GariusWeb.Api.Application.Services
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly Guid _defaultTenantId;
 
-        public TenantService(IHttpContextAccessor httpContextAccessor, IOptions<AppSecrets.TenantSettings> tenantSettings)
+        public TenantService(IHttpContextAccessor httpContextAccessor, IOptions<AppSecretsConfiguration.TenantSettings> tenantSettings)
         {
             _httpContextAccessor = httpContextAccessor;
-            if (tenantSettings.Value.Mode == AppSecrets.TenantMode.Dedicated)
+            if (tenantSettings.Value.Mode == AppSecretsConfiguration.TenantMode.Dedicated)
             {
                 _defaultTenantId = tenantSettings.Value.DefaultTenantId;
             }

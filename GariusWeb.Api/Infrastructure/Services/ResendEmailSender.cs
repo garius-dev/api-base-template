@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using System.Net.Http.Headers;
 using System.Text;
-using static GariusWeb.Api.Configuration.AppSecrets;
+using static GariusWeb.Api.Configuration.AppSecretsConfiguration;
 
 namespace GariusWeb.Api.Infrastructure.Services
 {

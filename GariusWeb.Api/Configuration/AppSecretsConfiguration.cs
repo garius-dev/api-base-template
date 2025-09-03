@@ -2,7 +2,7 @@
 
 namespace GariusWeb.Api.Configuration
 {
-    public static class AppSecrets
+    public static class AppSecretsConfiguration
     {
         public enum TenantMode
         {
@@ -14,6 +14,11 @@ namespace GariusWeb.Api.Configuration
         {
             public TenantMode Mode { get; set; } = TenantMode.Dedicated; // "SaaS" or "Dedicated"
             public Guid DefaultTenantId { get; set; }
+        }
+
+        public class HashidSettings
+        {
+            public string SecretKey { get; set; } = string.Empty;
         }
 
         public class UrlSettings

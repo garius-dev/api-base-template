@@ -16,7 +16,6 @@ using GariusWeb.Api.Infrastructure.Data;
 using GariusWeb.Api.Infrastructure.Data.Seed;
 using GariusWeb.Api.Infrastructure.Middleware;
 using GariusWeb.Api.Infrastructure.Services;
-using GariusWeb.Api.Swagger;
 using GariusWeb.Api.WebApi.Dev;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -32,7 +31,7 @@ using Serilog;
 using StackExchange.Redis;
 using System.Text;
 using System.Text.Json;
-using static GariusWeb.Api.Configuration.AppSecrets;
+using static GariusWeb.Api.Configuration.AppSecretsConfiguration;
 
 //Add-Migration AddUsersSearchIndex -Context ApplicationDbContext
 
@@ -101,7 +100,7 @@ builder.Services.AddCustomCors(builder.Environment);
 // --- CONFIGURAÇÃO DO SWAGGER ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
+builder.Services.ConfigureOptions<SwaggerConfiguration>();
 
 // --- CONFIGURAÇÃO DO VERSIONAMENTO DO SWAGGER ---
 builder.Services.AddApiVersioning(options =>
@@ -125,6 +124,7 @@ builder.Services.AddValidatedSettings<CloudinarySettings>(builder.Configuration,
 builder.Services.AddValidatedSettings<ResendSettings>(builder.Configuration, "ResendSettings");
 builder.Services.AddValidatedSettings<JwtSettings>(builder.Configuration, "JwtSettings");
 builder.Services.AddValidatedSettings<RedisSettings>(builder.Configuration, "RedisSettings");
+builder.Services.AddValidatedSettings<HashidSettings>(builder.Configuration, "HashidSettings");
 
 // --- LOAD DA CONFIG DE TENANT ---
 builder.Services.AddValidatedSettings<TenantSettings>(builder.Configuration, "TenantSettings");
@@ -337,6 +337,9 @@ builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 // --- CONFIGURAÇÃO DO SERVIÇO DE AUTH POLICY PROVIDER ---
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+
+// --- CONFIGURAÇÃO DO SERVIÇO DE HASH ID ---
+builder.Services.AddScoped<IHashIdService, HashIdService>();
 
 
 var app = builder.Build();
