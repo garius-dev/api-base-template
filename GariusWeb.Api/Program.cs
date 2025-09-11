@@ -458,7 +458,7 @@ if (migrateOnly)
             ";
 
         await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
-        var xxx = await cmd.ExecuteNonQueryAsync();
+        await cmd.ExecuteNonQueryAsync();
         Log.Information("Roles and permissions applied.");
     }
 
