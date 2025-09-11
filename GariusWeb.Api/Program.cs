@@ -370,7 +370,6 @@ app.UseForwardedHeaders();
 if (migrateOnly)
 {
     var rootConnectionString = connectionStringSettings.GetRootConnectionString(builder.Environment.IsDevelopment());
-    //var migrationConnectionString = connectionStringSettings.GetMigrationConnectionString(builder.Environment.IsDevelopment());
 
     await using (var conn = new Npgsql.NpgsqlConnection(rootConnectionString))
     {
