@@ -31,15 +31,69 @@ namespace GariusWeb.Api.Configuration
             public string ValidateInvitationPath { get; set; } = "/intivations/validate";
         }
 
+        public enum DatabaseUserType
+        {
+            SuperAdmin,
+            Admin,
+            Common
+        }
+
         public class ConnectionStringSettings
         {
-            [Required(ErrorMessage = "A connection string padrão ('Development') é obrigatória.")]
-            public string Development { get; set; } = string.Empty;
+            public string Host { get; set; } = string.Empty;
+            public string Port { get; set; } = string.Empty;
+            public string Database { get; set; } = string.Empty;
+            public DatabaseUser users { get; set; } = new();
 
-            [Required(ErrorMessage = "A connection string padrão ('Production') é obrigatória.")]
-            public string Production { get; set; } = string.Empty;
+            public string GetConnectionString(bool isDevelopment, bool isMigrateOnly)
+            {
+                var user = isMigrateOnly ? users.SuperAdmin : (isDevelopment ? users.Admin : users.Common);
+                var host = isDevelopment ? "localhost" : Host;
+                return $"Host={host};Port={Port};Database={Database};Username={user.Name};Password={user.Pwd}";
+            }
 
-            public string Staging { get; set; } = string.Empty;
+            public string GetRootConnectionString(bool isDevelopment)
+            {
+                var host = isDevelopment ? "localhost" : Host;
+                return $"Host={host};Port={Port};Database=postgres;Username={users.SuperAdmin.Name};Password={users.SuperAdmin.Pwd}";
+            }
+
+            //public string GetMigrationConnectionString(bool isDevelopment)
+            //{
+            //    var host = isDevelopment ? "localhost" : Host;
+            //    return $"Host={host};Port={Port};Database={Database};Username={users.SuperAdmin.Name};Password={users.SuperAdmin.Pwd}";
+            //}
+        }
+
+        //public class ConnectionStringSettings
+        //{
+        //    [Required(ErrorMessage = "A connection string padrão ('Development') é obrigatória.")]
+        //    public string Development { get; set; } = string.Empty;
+
+        //    [Required(ErrorMessage = "A connection string padrão ('Production') é obrigatória.")]
+        //    public string Production { get; set; } = string.Empty;
+
+        //    public string Staging { get; set; } = string.Empty;
+
+        //    public string Migration { get; set; } = string.Empty;
+        //}
+
+        //public class DatabaseSettings
+        //{
+        //    public string Name { get; set; } = string.Empty;
+        //}
+
+        public class DatabaseUser
+        {
+            public DatabaseUserSettings SuperAdmin { get; set; } = new();
+            public DatabaseUserSettings Admin { get; set; } = new();
+            public DatabaseUserSettings Common { get; set; } = new();
+        }
+
+        public class DatabaseUserSettings
+        {
+            public string Name { get; set; } = string.Empty;
+            public string Pwd { get; set; } = string.Empty;
         }
 
         public class GoogleExternalAuthSettings
