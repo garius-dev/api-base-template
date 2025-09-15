@@ -52,6 +52,9 @@ bool enableSwagger =
 bool migrateOnly =
     builder.Configuration.GetValue<bool?>("MIGRATE_ONLY") ?? false;
 
+bool isDockerRun =
+    builder.Configuration.GetValue<bool?>("DOCKER_RUN") ?? false;
+
 // --- CONFIGURAÇÃO DO LOG ---
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -76,24 +79,13 @@ var secretConfig = builder.AddGoogleSecrets("GariusTechAppSecrets");
 builder.Configuration.AddConfiguration(secretConfig);
 
 // --- CONFIGURAÇÃO DE CONEXÃO DO REDIS E DB ---
-var redisConfig = builder.Configuration[$"RedisSettings:{builder.Environment.EnvironmentName}:Configuration"];
+var redisSettings = builder.Configuration.GetSection("RedisSettings").Get<RedisSettings>()!;
+redisSettings.Validate();
+var redisConfig = redisSettings.GetConfiguration(builder.Environment.IsDevelopment(), isDockerRun);
 
 var connectionStringSettings = builder.Configuration.GetSection("ConnectionStringSettings").Get<ConnectionStringSettings>()!;
-var connectionString = connectionStringSettings.GetConnectionString(builder.Environment.IsDevelopment(), migrateOnly);
-
-if (string.IsNullOrEmpty(connectionString))
-{
-    Log.Fatal("DB: GET CONNECTION FAILED.");
-    Log.CloseAndFlush();
-    Environment.Exit(1);
-}
-
-if (string.IsNullOrWhiteSpace(redisConfig))
-{
-    Log.Fatal("REDIS: GET CONNECTION FAILED.");
-    Log.CloseAndFlush();
-    Environment.Exit(1);
-}
+connectionStringSettings.Validate();
+var connectionString = connectionStringSettings.GetConnectionString(builder.Environment.IsDevelopment(), migrateOnly, isDockerRun);
 
 // --- CONFIGURAÇÃO DO RATE LIMITER ---
 builder.Services.AddCustomRateLimiter();
@@ -369,134 +361,9 @@ app.UseForwardedHeaders();
 // --- CONFIGURAÇÃO DA BUILD DE MIGRATION ---
 if (migrateOnly)
 {
-    var rootConnectionString = connectionStringSettings.GetRootConnectionString(builder.Environment.IsDevelopment());
+    Log.Information("Running in migration-only mode.");
 
-    await using (var conn = new Npgsql.NpgsqlConnection(rootConnectionString))
-    {
-        await conn.OpenAsync();
-        var existsSql = "SELECT 1 FROM pg_database WHERE datname = @db";
-        await using (var cmd = new Npgsql.NpgsqlCommand(existsSql, conn))
-        {
-            cmd.Parameters.AddWithValue("db", connectionStringSettings.Database);
-            var exists = await cmd.ExecuteScalarAsync();
-
-            if (exists == null)
-            {
-                Log.Information("Database {DbName} not found. Creating...", connectionStringSettings.Database);
-                await using var createDb = new Npgsql.NpgsqlCommand($@"CREATE DATABASE ""{connectionStringSettings.Database}"";", conn);
-                await createDb.ExecuteNonQueryAsync();
-            }
-            else
-            {
-                Log.Information("Database {DbName} already exists.", connectionStringSettings.Database);
-            }
-        }
-    }
-
-    using var scope = app.Services.CreateScope();
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-    Log.Information("Running migrations...");
-    await context.Database.MigrateAsync().ConfigureAwait(false);
-    Log.Information("Migrations completed successfully.");
-
-    var serviceProvider = scope.ServiceProvider;
-    await ApplicationDbContextSeeder.SeedRolesAndPermissionsAsync(serviceProvider);
-
-    await using (var conn = new Npgsql.NpgsqlConnection(connectionString))
-    {
-        await conn.OpenAsync();
-
-        var sql = $@"
-                -- CREATE USER IF NOT EXISTS {connectionStringSettings.users.Admin.Name} WITH PASSWORD 'C*aYQMuDqK2nBJBakP#f';
-
-                DO
-                $do$
-                BEGIN
-                   IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '{connectionStringSettings.users.Admin.Name}') THEN
-                      CREATE USER {connectionStringSettings.users.Admin.Name} WITH PASSWORD '{connectionStringSettings.users.Admin.Pwd}';
-                   END IF;
-                END
-                $do$;
-                
-                GRANT CONNECT ON DATABASE ""{connectionStringSettings.Database}"" TO {connectionStringSettings.users.Admin.Name};
-                GRANT USAGE, CREATE ON SCHEMA public TO {connectionStringSettings.users.Admin.Name};
-                GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO {connectionStringSettings.users.Admin.Name};
-                GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO {connectionStringSettings.users.Admin.Name};
-                ALTER DEFAULT PRIVILEGES FOR USER {connectionStringSettings.users.Admin.Name} IN SCHEMA public
-                GRANT ALL PRIVILEGES ON TABLES TO {connectionStringSettings.users.Admin.Name};
-                ALTER DEFAULT PRIVILEGES FOR USER {connectionStringSettings.users.Admin.Name} IN SCHEMA public
-                GRANT ALL PRIVILEGES ON SEQUENCES TO {connectionStringSettings.users.Admin.Name};
-
-                -- Usuário para produção (execução da API)
-                -- CREATE USER IF NOT EXISTS {connectionStringSettings.users.Common.Name} WITH PASSWORD 'g2FEzaR@8$Vp5SfVN@GVS^1KQ5X&rX78s4DVzDJ&';
-
-                DO
-                $do$
-                BEGIN
-                   IF NOT EXISTS (SELECT FROM pg_catalog.pg_user WHERE usename = '{connectionStringSettings.users.Common.Name}') THEN
-                      CREATE USER {connectionStringSettings.users.Common.Name} WITH PASSWORD '{connectionStringSettings.users.Common.Pwd}';
-                   END IF;
-                END
-                $do$;
-
-                GRANT CONNECT ON DATABASE ""{connectionStringSettings.Database}"" TO {connectionStringSettings.users.Common.Name};
-                GRANT USAGE ON SCHEMA public TO {connectionStringSettings.users.Common.Name};
-                GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO {connectionStringSettings.users.Common.Name};
-                GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO {connectionStringSettings.users.Common.Name};
-                ALTER DEFAULT PRIVILEGES IN SCHEMA public
-                GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {connectionStringSettings.users.Common.Name};
-                ALTER DEFAULT PRIVILEGES IN SCHEMA public
-                GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {connectionStringSettings.users.Common.Name};
-
-                -- *** ESSENCIAL: Permissões para tabelas criadas pelo app_admin ***
-                ALTER DEFAULT PRIVILEGES FOR USER {connectionStringSettings.users.Admin.Name} IN SCHEMA public
-                GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {connectionStringSettings.users.Common.Name};
-                ALTER DEFAULT PRIVILEGES FOR USER {connectionStringSettings.users.Admin.Name} IN SCHEMA public
-                GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO {connectionStringSettings.users.Common.Name};
-            ";
-
-        await using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
-        await cmd.ExecuteNonQueryAsync();
-        Log.Information("Roles and permissions applied.");
-    }
-
-   
-
-    //using (var scope = app.Services.CreateScope())
-    //{
-    //    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-    //    try
-    //    {
-    //        Log.Information("Running migrations...");
-    //        await context.Database.MigrateAsync().ConfigureAwait(false);
-    //        Log.Information("Migrations completed successfully.");
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        Log.Fatal($"Migration failed: {ex.Message}");
-    //        Log.CloseAndFlush();
-    //        Environment.Exit(1);
-    //    }
-    //}
-
-    //using (var scope = app.Services.CreateScope())
-    //{
-    //    var serviceProvider = scope.ServiceProvider;
-    //    try
-    //    {
-    //        await ApplicationDbContextSeeder.SeedRolesAndPermissionsAsync(serviceProvider);
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
-    //        logger.LogError(ex, "An error occurred while seeding the database.");
-    //    }
-    //}
-
-    Log.CloseAndFlush();
-    Environment.Exit(0);
+    await MigrationExtensions.RunMigrationsAsync(app, connectionStringSettings, builder.Environment.IsDevelopment(), isDockerRun);
 }
 
 // --- CONFIGURAÇÃO DO MIDDLEWARE DE TRATAMENTO DE EXCEÇÕES ---
