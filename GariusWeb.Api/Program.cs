@@ -73,7 +73,7 @@ builder.Host.UseSerilog((ctx, services, lc) => lc
     .Enrich.WithProperty("env", ctx.HostingEnvironment.EnvironmentName));
 
 // --- CONFIGURAÇÃO DO GOOGLE SECRETS ---
-var secretConfig = builder.AddGoogleSecrets("GariusTechAppSecrets");
+var secretConfig = builder.AddGoogleSecrets("tcm-secrets");
 
 // --- ADICIONA O GOOGLE SECRETS À CONFIGURAÇÃO GLOBAL ---
 builder.Configuration.AddConfiguration(secretConfig);

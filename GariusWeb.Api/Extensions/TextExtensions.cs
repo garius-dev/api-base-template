@@ -6,12 +6,53 @@ using System.Buffers.Text;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace GariusWeb.Api.Extensions
 {
     public static class TextExtensions
     {
         private static readonly HtmlSanitizer _sanitizer = new();
+
+        public static string NormalizeFileName(string fileName)
+        {
+            // 1. Minúsculo
+            fileName = fileName.ToLowerInvariant();
+
+            // 2. Remover acentos
+            fileName = RemoveAccents(fileName);
+
+            // 3. Substituir espaços e underline por hífen
+            fileName = fileName.Replace(" ", "-").Replace("_", "-");
+
+            // 4. Remover caracteres inválidos (tudo que não é letra, número, ponto ou hífen)
+            fileName = Regex.Replace(fileName, @"[^a-z0-9\.\-]", "");
+
+            // 5. Colapsar múltiplos hífens em um só
+            fileName = Regex.Replace(fileName, @"-+", "-");
+
+            // 6. Garantir que não comece/termine com hífen
+            fileName = fileName.Trim('-');
+
+            return fileName;
+        }
+
+        private static string RemoveAccents(string text)
+        {
+            var normalized = text.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder();
+
+            foreach (var c in normalized)
+            {
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) !=
+                    System.Globalization.UnicodeCategory.NonSpacingMark)
+                {
+                    sb.Append(c);
+                }
+            }
+
+            return sb.ToString().Normalize(NormalizationForm.FormC);
+        }
 
         public static string CreateOneTimeCode(int byteLen = 32)
         {
